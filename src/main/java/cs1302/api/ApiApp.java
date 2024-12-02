@@ -10,8 +10,9 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * REPLACE WITH NON-SHOUTING DESCRIPTION OF YOUR APP.
+ * This is an declaration for DataUSA API which contains information of schools.
  */
+
 public class ApiApp extends Application {
     Stage stage;
     Scene scene;

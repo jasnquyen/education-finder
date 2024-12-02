@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CSCI 1302 - Api App v2024.fa
 
 ![Approved for Fall 2024](https://img.shields.io/badge/Approved%20for-Fall%202024-green)
@@ -670,3 +671,6 @@ the University of Georgia or the University System of Georgia.
 <hr>
 
 **Feature Preparation Timestamps:**
+=======
+
+>>>>>>> 97770b6 (Create README.md)
