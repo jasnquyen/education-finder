@@ -30,16 +30,18 @@ public class DataUsaApi {
     /**
      * Fetches educational statistics for a given location.
      *
-     * @param locationType The type of location (State, City, or Address).
      * @param locationValue The value of the location (e.g., "New York").
      * @return A formatted string of educational statistics.
      * @throws Exception If the API call fails.
      */
-    public String getEducationalStatistics(String locationType, String locationValue)
+    public String getEducationalStatistics(String locationValue)
         throws Exception {
         // Build the query
-        String query = String.format("?drilldowns=%s&measures=Population&Geography=%s",
-                locationType, URI.create(locationValue).toString());
+        String query = String.format(
+                "?drilldowns=Institution&measures=Enrollment,Acceptance Rate,Location",
+            URI.create(locationValue).toString().replace(" ", "+")
+        );
+
 
         // Create the request
         HttpRequest request = HttpRequest.newBuilder()
@@ -72,14 +74,29 @@ public class DataUsaApi {
         // Extract "data" field as a list
         List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
 
-        // Format the statistics into a readable string
+        // Format the results
+        if (data.isEmpty()) {
+            return "No data found for the specified institution.";
+        }
+
         StringBuilder result = new StringBuilder();
         for (Map<String, Object> record : data) {
-            String educationLevel = record.get("Education Attainment").toString();
-            int population = ((Double) record.get("Population")).intValue();
-            result.append(educationLevel).append(": ").append(population).append("\n");
+            String institution = record.get("Institution").toString();
+            int enrollment = ((Double) record.get("Enrollment")).intValue();
+            double acceptanceRate = (record.containsKey("Acceptance Rate"))
+                    ? (Double) record.get("Acceptance Rate")
+                    : 0.0;
+            String location = record.get("Location").toString();
+
+            result.append("Institution: ").append(institution).append("\n");
+            result.append("Enrollment: ").append(enrollment).append("\n");
+            result.append("Acceptance Rate: ").append(acceptanceRate).append("%\n");
+            result.append("Location: ").append(location).append("\n");
+
+            result.append("\n\n");
         }
 
         return result.toString();
+
     }
 }

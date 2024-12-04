@@ -17,16 +17,13 @@ import java.util.List;
 
 public class Controller {
 
-    private final VBox rootLayout;
+    private final BorderPane rootLayout;
     private final TextField searchField;
-    private final ComboBox<String> locationTypeDropdown;
-    private final ComboBox<String> schoolTypeDropdown;
     private final Button searchButton;
     private final ListView<Schools> resultsList;
     private final ImageView mapView;
-    private final ProgressBar progressBar;
-
     private final ApiApp apiApp;
+    private final HBox bottomBar;
 
     /** Main Controller method.
      *
@@ -40,21 +37,13 @@ public class Controller {
         headerLayout.setPadding(new Insets(10));
 
         searchField = new TextField();
-        searchField.setPromptText("Enter location");
-
-        locationTypeDropdown = new ComboBox<>();
-        locationTypeDropdown.getItems().addAll("State", "City", "Address");
-        locationTypeDropdown.setPromptText("Location Type");
-
-        schoolTypeDropdown = new ComboBox<>();
-        schoolTypeDropdown.getItems().addAll("High School", "University/College");
-        schoolTypeDropdown.setPromptText("School Type");
+        searchField.setPromptText("Enter address (1005 Macon Hwy)");
 
         searchButton = new Button("Search");
         searchButton.setOnAction(event -> handleSearch());
 
         headerLayout.getChildren().addAll
-            (searchField, locationTypeDropdown, schoolTypeDropdown, searchButton);
+            (searchField, searchButton);
 
         // Results List
         resultsList = new ListView<>();
@@ -68,25 +57,37 @@ public class Controller {
         mapView.setFitHeight(200);
         mapView.setPreserveRatio(true);
 
-        // Progress Bar
-        HBox bottomBar = new HBox();
+        // School Info List
+
+
+
+        // Bottom Bar
+        bottomBar = new HBox();
         bottomBar.setPadding(new Insets(10));
-        progressBar = new ProgressBar();
-        progressBar.setPrefWidth(600);
-        progressBar.setVisible(false);
-        bottomBar.getChildren().add(progressBar);
+        bottomBar.setStyle("-fx-background-color: #e0e0e0; -fx-border-color: #c0c0c0;");
+        Label statusLabel = new Label("Loading...");
+        statusLabel.setPadding(new Insets(5, 10, 5, 10));
+        ProgressBar progressBar = new ProgressBar();
+        progressBar.setProgress(0);
+        progressBar.setPrefWidth(300);
+        progressBar.setPrefHeight(25);
+        progressBar.setVisible(true);
+
+        bottomBar.getChildren().addAll(statusLabel, progressBar);
 
         // Root Layout
-        rootLayout = new VBox(10);
+        rootLayout = new BorderPane();
         rootLayout.setPadding(new Insets(10));
-        rootLayout.getChildren().addAll(headerLayout, resultsList, mapView, bottomBar);
+        rootLayout.setTop(headerLayout);        // Header at the top
+        rootLayout.setCenter(new VBox(10, resultsList, mapView)); // Center with results and map
+        rootLayout.setBottom(bottomBar);
     }
 
     /** Get layout.
-     * @return VBox
+     * @return BorderPane
      */
 
-    public VBox getLayout() {
+    public BorderPane getLayout() {
         return rootLayout;
     }
 
@@ -95,32 +96,28 @@ public class Controller {
      */
 
     private void handleSearch() {
-        String locationType = locationTypeDropdown.getValue();
-        String locationValue = searchField.getText();
-        String schoolType = schoolTypeDropdown.getValue();
 
-        if (locationType == null || locationValue.isBlank() || schoolType == null) {
-            showAlert("Input Error", "Please fill in all fields.");
+        String locationValue = searchField.getText();
+
+        if (locationValue.isBlank()) {
+            showAlert("Input error:", "Please enter valid Address");
             return;
         }
 
-        progressBar.setVisible(true);
         new Thread(() -> {
             try {
                 // Fetch data
-                List<Schools> institutions = apiApp.getInstitutions
-                    (locationType, locationValue, schoolType);
+                List<Schools> institutions = apiApp.getSchools
+                    (locationValue);
 
                 // Update UI on the JavaFX Application Thread
                 Platform.runLater(() -> {
-                    progressBar.setVisible(false);
                     resultsList.getItems().clear();
                     resultsList.getItems().addAll(institutions.subList
                         (0, Math.min(institutions.size(), 5)));
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    progressBar.setVisible(false);
                     showAlert("Error", "Failed to fetch results: " + e.getMessage());
                 });
             }

@@ -15,16 +15,14 @@ public class ApiApp {
     private final GoogleMapsApi googleMapsApi = new GoogleMapsApi();
 
     /** Collect list of schools.
-     * @param locationType
      * @param locationValue
-     * @param schoolType
      * @return list of Schools
      */
 
-    public List<Schools> getInstitutions
-    (String locationType, String locationValue, String schoolType) throws Exception {
+    public List<Schools> getSchools
+    (String locationValue) throws Exception {
         // Combine DataUSA and Google Maps API logic to fetch institutions
-        return googleMapsApi.getInstitutions(locationValue, schoolType);
+        return googleMapsApi.findSchools(locationValue);
     }
 
     /** Use Google Maps Api URL.
