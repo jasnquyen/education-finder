@@ -1,5 +1,7 @@
 package cs1302.api;
 
+import java.util.HashSet;
+import java.util.Set;
 import cs1302.api.Schools;
 import java.io.IOException;
 import java.net.URI;
@@ -12,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /** Implementing Google Maps API.
  *
@@ -43,9 +47,11 @@ public class GoogleMapsApi {
      * @param address
      */
     public String convertAddress(String address) throws Exception {
+        String encodedAddress = URLEncoder.encode(address, StandardCharsets.UTF_8);
+
         String urlString = String.format(
             "%s?address=%s&key=%s",GEOCODING_BASE_URL,
-            URI.create(address).toString().replace(" ", "+"),
+            encodedAddress,
             API_KEY
         );
 
@@ -88,7 +94,7 @@ public class GoogleMapsApi {
         throws Exception {
         // Build the query
         String query =
-            String.format("?location=%s&radius=5000&type=%s&key=%s", location);
+            String.format("?location=%s&radius=5000&type=university&key=%s", location, API_KEY);
 
         // Create the request
         HttpRequest request = HttpRequest.newBuilder()
@@ -121,17 +127,48 @@ public class GoogleMapsApi {
         // Extract "results" field as a list
         List<Map<String, Object>> results = (List<Map<String, Object>>) responseMap.get("results");
 
+        Set<String> uniqueNames = new HashSet<>();
+
         // Convert the results into a list of Institution objects
         List<Schools> institutions = new ArrayList<>();
         for (Map<String, Object> result : results) {
             String name = result.get("name").toString();
-            String address = result.containsKey("vicinity") ?
-                result.get("vicinity").toString() : "Unknown";
+            if (name.toLowerCase().contains("university")
+                || name.toLowerCase().contains("college")) {
+            // Normalize the name (remove sub-departments or programs)
+                String normalizedName = normalizeUniversityName(name);
 
-            institutions.add(new Schools(name, address));
+                if (uniqueNames.add(normalizedName)) {
+                    String address = result.containsKey("vicinity") ?
+                        result.get("vicinity").toString() : "Unknown";
+
+                    institutions.add(new Schools(normalizedName, address));
+                }
+            }
         }
 
         return institutions;
+    }
+
+    /** Normalize names.
+     * @return String
+     * @param name
+     */
+    private String normalizeUniversityName(String name) {
+    // Remove sub-names or qualifiers after delimiters (e.g., " - ", ":")
+        if (name.contains(" - ")) {
+            name = name.split(" - ")[0].trim();
+        } else if (name.contains(":")) {
+            name = name.split(":")[0].trim();
+        }
+
+    // Further custom cleanup (e.g., remove redundant phrases)
+        if (name.toLowerCase().endsWith("university")) {
+            name = name.replace(" University", "").trim();
+            name += " University"; // Ensure consistent format
+        }
+
+        return name;
     }
 
     /**

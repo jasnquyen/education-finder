@@ -97,7 +97,7 @@ public class Controller {
 
     private void handleSearch() {
 
-        String locationValue = searchField.getText();
+        String locationValue = searchField.getText().trim();
 
         if (locationValue.isBlank()) {
             showAlert("Input error:", "Please enter valid Address");
@@ -107,14 +107,19 @@ public class Controller {
         new Thread(() -> {
             try {
                 // Fetch data
+                GoogleMapsApi googleMapsApi = new GoogleMapsApi();
+                String coordinates = googleMapsApi.convertAddress(locationValue);
                 List<Schools> institutions = apiApp.getSchools
-                    (locationValue);
+                    (coordinates);
 
                 // Update UI on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     resultsList.getItems().clear();
                     resultsList.getItems().addAll(institutions.subList
-                        (0, Math.min(institutions.size(), 5)));
+                        (0, Math.min(institutions.size(), 9)));
+                    if (institutions.isEmpty()) {
+                        showAlert("No Results", "No schools found near the given address.");
+                    }
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {

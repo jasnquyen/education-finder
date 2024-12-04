@@ -31,6 +31,7 @@ public class ApiApp {
      */
 
     public String getMapUrl(Schools institution) {
+        GoogleMapsApi mapsApi = new GoogleMapsApi();
         return googleMapsApi.getStaticMapUrl(institution.getAddress());
     }
 }
