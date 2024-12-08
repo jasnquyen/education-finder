@@ -68,19 +68,24 @@ public class GoogleMapsApi {
             Map<String, Object> responseMap = gson.fromJson(response.body(), Map.class);
             List<Map<String, Object>> results =
                 (List<Map<String, Object>>) responseMap.get("results");
-
             if (!results.isEmpty()) {
-                Map<String, Object> location = (Map<String, Object>)
-                    ((Map<String, Object>) results.get(0).get("geometry")).get("location");
-                double lat = (double) location.get("lat");
-                double lng = (double) location.get("lng");
-                return lat + "," + lng;
+                Map<String, Object> geometry = (Map<String, Object>) results.get(0).get("geometry");
+                if (geometry != null && geometry.get("location") instanceof Map) {
+                    Map<String, Object> location = (Map<String, Object>) geometry.get("location");
+                    double lat = location.containsKey("lat") && location.get("lat")
+                        instanceof Double
+                        ? (Double) location.get("lat")
+                        : 0.0;
+                    double lng = location.containsKey("lng") && location.get("lng")
+                        instanceof Double
+                        ? (Double) location.get("lng")
+                        : 0.0;
+                    return lat + "," + lng;
+                }
             }
         }
-
         throw new Exception("Failed to convert address to coordinates.");
     }
-
 
     /**
      * Fetches nearby educational institutions based on location and school type.
@@ -94,7 +99,7 @@ public class GoogleMapsApi {
         throws Exception {
         // Build the query
         String query =
-            String.format("?location=%s&radius=5000&type=university&key=%s", location, API_KEY);
+            String.format("?location=%s&radius=50000&type=university&key=%s", location, API_KEY);
 
         // Create the request
         HttpRequest request = HttpRequest.newBuilder()
@@ -131,18 +136,25 @@ public class GoogleMapsApi {
 
         // Convert the results into a list of Institution objects
         List<Schools> institutions = new ArrayList<>();
+        List<String> exclusions = List.of("system", "cafe",
+            "shop", "gym", "center", "hospital", "clinic");
+
         for (Map<String, Object> result : results) {
             String name = result.get("name").toString();
             if (name.toLowerCase().contains("university")
-                || name.toLowerCase().contains("college")) {
+                || name.toLowerCase().contains("college") ||
+                 name.toLowerCase().contains("institute")) {
             // Normalize the name (remove sub-departments or programs)
                 String normalizedName = normalizeUniversityName(name);
-
+                boolean isExcluded = exclusions.stream().anyMatch(name::contains);
+                if (isExcluded) {
+                    continue;
+                }
                 if (uniqueNames.add(normalizedName)) {
                     String address = result.containsKey("vicinity") ?
                         result.get("vicinity").toString() : "Unknown";
 
-                    institutions.add(new Schools(normalizedName, address));
+                    institutions.add(new Schools(normalizedName, address, "Unknown City"));
                 }
             }
         }
@@ -192,6 +204,58 @@ public class GoogleMapsApi {
             System.out.println("Error generating Static Map URL: " + e.getMessage());
             return null;
         }
+    }
+
+    /** get School details.
+     * @throw Exception
+     * @param schoolName
+     * @return Map
+     */
+
+    public Map<String, Object> getSchoolDetails(String schoolName) throws Exception {
+        String encodedSchoolName = URLEncoder.encode(schoolName, StandardCharsets.UTF_8);
+
+        String urlString = String.format(
+            "https://maps.googleapis.com/maps/api/place/findplacefromtext" +
+            "/json?input=%s&inputtype=textquery&fields=name,rating,formatted_address&key=%s",
+            encodedSchoolName, API_KEY
+        );
+
+        System.out.println("Generated Query URL: " + urlString);
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(urlString))
+            .GET()
+            .build();
+
+        HttpResponse<String> response =
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 200) {
+            Map<String, Object> responseMap = gson.fromJson(response.body(), Map.class);
+            List<Map<String, Object>> candidates =
+                (List<Map<String, Object>>) responseMap.get("candidates");
+            if (!candidates.isEmpty()) {
+                return candidates.get(0); // Return the first match
+            }
+        }
+
+        throw new Exception("Failed to fetch school details from Google Maps API.");
+    }
+
+    /** Make map query.
+     * @return String
+     * @param selectedSchool
+     */
+
+    public String createMapQuery(Schools selectedSchool) throws Exception {
+        String schoolName = URLEncoder.encode(selectedSchool.getName(), StandardCharsets.UTF_8);
+        String address = URLEncoder.encode(selectedSchool.getAddress(), StandardCharsets.UTF_8);
+
+    // Create a Google Maps search query link
+        return String.format(
+            "https://www.google.com/maps/search/?api=1&query=%s,%s",
+            schoolName, address
+        );
     }
 
 

@@ -7,6 +7,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 /** DataUSA API.
  *
@@ -14,7 +17,8 @@ import java.util.Map;
 
 public class DataUsaApi {
 
-    private static final String BASE_URL = "https://datausa.io/api/data";
+    private static final String BASE_URL = "https://api.data.gov/ed/collegescorecard/v1/schools";
+    private static final String API_KEY = "bY9zbrK3jNOVY3ipATl3iUal2NmNnDUxBXW51qKj";
     private final HttpClient httpClient;
     private final Gson gson;
 
@@ -28,24 +32,83 @@ public class DataUsaApi {
     }
 
     /**
-     * Fetches educational statistics for a given location.
+     * Fetches schools based on city or state.
      *
-     * @param locationValue The value of the location (e.g., "New York").
-     * @return A formatted string of educational statistics.
+     * @param location The location filter (city or state).
+     * @param locationType The type of location ("city" or "state").
+     * @return A list of schools in the specified location.
      * @throws Exception If the API call fails.
      */
-    public String getEducationalStatistics(String locationValue)
+
+    public List<Schools> searchSchoolsByLocation(String location, String locationType)
         throws Exception {
-        // Build the query
+        if (location == null || location.isEmpty()) {
+            throw new IllegalArgumentException("Location must not be null or empty");
+        }
+        if (!locationType.equals("city") && !locationType.equals("state")) {
+            throw new IllegalArgumentException("Location type must be either 'city' or 'state'");
+        }
+
+        String encodedLocation = URLEncoder.encode(location, StandardCharsets.UTF_8);
         String query = String.format(
-                "?drilldowns=Institution&measures=Enrollment,Acceptance Rate,Location",
-            URI.create(locationValue).toString().replace(" ", "+")
+             "?api_key=%s&school.%s=%s&fields=school.name,school.city,school.state," +
+             "school.address,latest.student.size",
+             API_KEY, locationType, encodedLocation
         );
+
+        String requestUrl = BASE_URL + query;
+        System.out.println("Generated URL: " + requestUrl);
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(requestUrl))
+            .GET()
+            .build();
+
+        HttpResponse<String> response =
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 200) {
+            return parseSchools(response.body());
+        } else {
+            throw new Exception("Failed to fetch schools: HTTP " + response.statusCode());
+        }
+    }
+
+
+
+
+
+
+    /**
+     * Fetches educational statistics for a given location.
+     *
+     * @param institutionName The value of the location (e.g., "New York").
+     * @return A formatted string of educational statistics.
+     * @throws Exception If the API call fails.
+     * @param schoolCity
+     */
+    public String getEducationalStatistics(String institutionName, String schoolCity)
+        throws Exception {
+
+        if (institutionName == null || institutionName.isEmpty()) {
+            throw new IllegalArgumentException("Institution name must not be null or empty");
+        }
+        // Build the query
+        String encodedInstitutionName = URLEncoder.encode(institutionName, StandardCharsets.UTF_8);
+        String encodedCityName = URLEncoder.encode(schoolCity, StandardCharsets.UTF_8);
+        String query = String.format(
+            "?api_key=%s&school.name=%s&school.city=%s&fields=school.name,school.city,"
+            + "school.address,latest.admissions.admission_rate.overall," +
+            "latest.cost.attendance.academic_year,latest.student.size",
+            API_KEY, encodedInstitutionName, encodedCityName
+
+            );
 
 
         // Create the request
+        String requestUrl = BASE_URL + query;
+        System.out.println("Generated URL: " + requestUrl);
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + query))
+                .uri(URI.create(requestUrl))
                 .GET()
                 .build();
 
@@ -56,9 +119,46 @@ public class DataUsaApi {
         if (response.statusCode() == 200) {
             return parseEducationalStatistics(response.body());
         } else {
-            throw new Exception("Failed to fetch data from DataUSA API: HTTP " +
+            throw new Exception("Failed to fetch data from API: HTTP " +
             response.statusCode());
         }
+
+
+    }
+
+    /**
+     * Parses schools from the JSON response.
+     *
+     * @param jsonResponse The JSON response string.
+     * @return A list of Schools objects.
+     */
+    private List<Schools> parseSchools(String jsonResponse) {
+        Map<String, Object> responseMap = gson.fromJson(jsonResponse, Map.class);
+
+        if (!responseMap.containsKey("results") || responseMap.get("results") == null) {
+            throw new IllegalStateException("API response missing 'results' field");
+        }
+
+        List<Map<String, Object>> results = (List<Map<String, Object>>) responseMap.get("results");
+
+        List<Schools> schools = new ArrayList<>();
+        for (Map<String, Object> school : results) {
+            String name = school.containsKey("school.name") && school.get("school.name")
+                instanceof String
+                ? (String) school.get("school.name")
+                : "Unknown Name";
+
+            String city = school.containsKey("school.city") ?
+                (String) school.get("school.city") : "Unknown City";
+            String address = school.containsKey("school.address") ?
+                (String) school.get("school.address") : "Unknown Address";
+
+
+
+            schools.add(new Schools(name, address, city));
+        }
+
+        return schools;
     }
 
     /**
@@ -71,32 +171,38 @@ public class DataUsaApi {
         // Deserialize JSON response into a Map
         Map<String, Object> responseMap = gson.fromJson(jsonResponse, Map.class);
 
-        // Extract "data" field as a list
-        List<Map<String, Object>> data = (List<Map<String, Object>>) responseMap.get("data");
-
-        // Format the results
-        if (data.isEmpty()) {
+        // Check if "data" exists and is not null
+        if (!responseMap.containsKey("results") || responseMap.get("results") == null) {
             return "No data found for the specified institution.";
         }
 
-        StringBuilder result = new StringBuilder();
-        for (Map<String, Object> record : data) {
-            String institution = record.get("Institution").toString();
-            int enrollment = ((Double) record.get("Enrollment")).intValue();
-            double acceptanceRate = (record.containsKey("Acceptance Rate"))
-                    ? (Double) record.get("Acceptance Rate")
-                    : 0.0;
-            String location = record.get("Location").toString();
+        // Extract "data" field as a list
+        List<Map<String, Object>> results = (List<Map<String, Object>>) responseMap.get("results");
 
-            result.append("Institution: ").append(institution).append("\n");
-            result.append("Enrollment: ").append(enrollment).append("\n");
-            result.append("Acceptance Rate: ").append(acceptanceRate).append("%\n");
-            result.append("Location: ").append(location).append("\n");
-
-            result.append("\n\n");
+        // Format the results
+        if (results.isEmpty()) {
+            return "No data found for the specified institution.";
         }
 
-        return result.toString();
+        Map<String, Object> school = results.get(0);
+        System.out.println("Parsing school data: " + school);
+        String name = (String) school.get("school.name");
+        int enrollment = school.containsKey("latest.student.size") ?
+            ((Double) school.get("latest.student.size")).intValue() : 0;
+        double admissionRate = school.containsKey("latest.admissions.admission_rate.overall") ?
+            (Double) school.get("latest.admissions.admission_rate.overall") : 0.0;
+        double annualCost = school.containsKey("latest.cost.attendance.academic_year") ?
+            (Double) school.get("latest.cost.attendance.academic_year") : 0.0;
+        System.out.println("Extracted annualCost: " + annualCost);
+        return (String.format(
+            "Institution: %s\nEnrollment: %d\nAdmission Rate: %.2f%%\nAnnual Cost: $%.2f\n\n",
+            name, enrollment, admissionRate * 100, annualCost
+        ));
+
+
+
+
+
 
     }
 }

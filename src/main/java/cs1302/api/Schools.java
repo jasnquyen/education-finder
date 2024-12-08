@@ -7,17 +7,18 @@ package cs1302.api;
 public class Schools {
     private final String name;
     private final String address;
-
+    private final String city;
 
     /** Method to construct data on schools.
      * @param name
      * @param address
+     * @param city
      */
 
-    public Schools(String name, String address) {
+    public Schools(String name, String address, String city) {
         this.name = name;
         this.address = address;
-
+        this.city = city;
     }
 
     /** Get name of school.
@@ -27,8 +28,7 @@ public class Schools {
     public String getName() {
         return name;
     }
-
-    /** Get address of school.
+    /** Return address.
      * @return String
      */
 
@@ -36,8 +36,17 @@ public class Schools {
         return address;
     }
 
+    /** Return city name.
+     * @return String
+     */
+
+    public String getCity() {
+        return city;
+    }
+
     @Override
     public String toString() {
         return name + " (" + address + ") ";
     }
+
 }
