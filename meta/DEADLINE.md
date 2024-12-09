@@ -7,12 +7,16 @@ Markdown is transformed into nice-looking HTML.
 
 ## Part 1.1: App Description
 
-> Please provide a friendly description of your app, including
-> the primary functions available to users of the app. Be sure to
-> describe exactly what APIs you are using and how they are connected
-> in a meaningful way.
+    I've created a city-based university finder which takes a user-input city and returns a list of universities within the area.
+    With this information, a map, and school-based data will be returned.
+    - View detailed information such as location, costs, enrollment, etc.
+    - View selected colleges and see surrounding locations
 
-> **Also, include the GitHub `https` URL to your repository.**
+    The APIs that were used were Google Maps API and College Scorecard API. These two API's work together as
+    College Scorecard returns colleges based off city and displays school-based data, while Google Maps API generates a map off the address of
+    the selected school, and generates information based off it.
+
+    Github Repository: (https://github.com/jan19557/cs1302-api-app/tree/main)
 
 TODO WRITE / REPLACE
 
@@ -28,29 +32,30 @@ TODO WRITE / REPLACE
 ### API 1
 
 ```
-https://.../replace/me
+https://api.data.gov/ed/collegescorecard/v1/schools?api_key=YOUR_API_KEY&school.name=Harvard+University&school.city=Atlanta&fields=school.name,school.city,school.address,latest.admissions.admission_rate.overall,latest.cost.attendance.academic_year,latest.student.size
+
 ```
 
-> Replace this line with notes (if needed) or remove it (if not needed).
+> College Scoreboard API: requires API KEY and has a free tier offering 1000 rate limit. Query fetches data about a specific school, including its name, city, address, admission rate, annual cost, and enrollment size.
 
 ### API 2
 
 ```
-https://../replace/me
+https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=Harvard+University&inputtype=textquery&fields=name,rating,formatted_address&key=YOUR_API_KEY
+
 ```
 
-> Replace this line with notes (if needed) or remove it (if not needed).
+```
+https://maps.googleapis.com/maps/api/staticmap?center=33.7756,-84.3963&zoom=15&size=600x300&markers=color:red|label:S|33.7756,-84.3963&key=YOUR_API_KEY
+
+```
+
+> Google Maps API: requires API KEY and has free tier offering 1000 rate limit. First query specifically returns location-based data including address and ratings. Second query is used to generate a static map image of the location, based off coordinates.
 
 ## Part 2: New
 
-> What is something new and/or exciting that you learned from working
-> on this project?
-
-TODO WRITE / REPLACE
+Something I learned from this project is how to enforce collaboration on two APIs to broaden the capabilities of a program. This included being able to handle errors caused by information from the different APIs interacting and learning how to create bridges. Alongside this, learning how to use APIs was the biggest takeaway. Having to navigate the usage of API keys and query format was very helpful and informative.
 
 ## Part 3: Retrospect
 
-> If you could start the project over from scratch, what do
-> you think might do differently and why?
-
-TODO WRITE / REPLACE
+If I could go back to the beginning of the project, I would've used College Scoreboard API off the bat. Originally I used the DataUSA API which proved to be more inefficient due to its inability to collaborate with the Google Maps API as well due to naming differences. The use of College Scoreboard API and Google Maps API was a lot more efficient. Alongside this, I would've better organized my classes so that the project would be a lot cleaner.
