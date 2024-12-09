@@ -164,23 +164,22 @@ public class GoogleMapsApi {
 
     /** Normalize names.
      * @return String
-     * @param name
+     * @param schoolName
      */
-    private String normalizeUniversityName(String name) {
+    public String normalizeUniversityName(String schoolName) {
     // Remove sub-names or qualifiers after delimiters (e.g., " - ", ":")
-        if (name.contains(" - ")) {
-            name = name.split(" - ")[0].trim();
-        } else if (name.contains(":")) {
-            name = name.split(":")[0].trim();
+        if (schoolName.contains("-")) {
+            schoolName = schoolName.split("-")[0].trim(); // Take only the part before the dash
         }
 
-    // Further custom cleanup (e.g., remove redundant phrases)
-        if (name.toLowerCase().endsWith("university")) {
-            name = name.replace(" University", "").trim();
-            name += " University"; // Ensure consistent format
-        }
+    // Further clean up (e.g., remove "Main Campus")
+        schoolName = schoolName.replaceAll("(?i)\\b" +
+        "(administrative|clinic|gym|building|center|branch|extension)\\b", "")
+                           .replaceAll("(?i)\\b(main campus|sub-campus)\\b", "")
+                           .replaceAll("\\s+", " ") // Remove extra spaces
+                           .trim();
 
-        return name;
+        return schoolName;
     }
 
     /**
@@ -213,7 +212,8 @@ public class GoogleMapsApi {
      */
 
     public Map<String, Object> getSchoolDetails(String schoolName) throws Exception {
-        String encodedSchoolName = URLEncoder.encode(schoolName, StandardCharsets.UTF_8);
+        String normalizedSchoolName = normalizeUniversityName(schoolName);
+        String encodedSchoolName = URLEncoder.encode(normalizedSchoolName, StandardCharsets.UTF_8);
 
         String urlString = String.format(
             "https://maps.googleapis.com/maps/api/place/findplacefromtext" +
@@ -235,9 +235,12 @@ public class GoogleMapsApi {
             List<Map<String, Object>> candidates =
                 (List<Map<String, Object>>) responseMap.get("candidates");
             if (!candidates.isEmpty()) {
-                return candidates.get(0); // Return the first match
+                return candidates.get(0);
+
+
             }
         }
+
 
         throw new Exception("Failed to fetch school details from Google Maps API.");
     }

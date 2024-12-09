@@ -9,6 +9,9 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import cs1302.api.Schools;
+import cs1302.api.GoogleMapsInfo;
+import cs1302.api.MapDisplay;
+
 
 import java.util.List;
 
@@ -18,11 +21,11 @@ import java.util.List;
 
 public class Controller {
 
+    private final MapDisplay mapDisplay;
     private final BorderPane rootLayout;
     private final TextField searchField;
     private final Button searchButton;
     private final ListView<Schools> resultsList;
-    private final ImageView mapView;
     private final ApiApp apiApp;
     private final HBox bottomBar;
     private Schools selectedSchool;
@@ -43,30 +46,28 @@ public class Controller {
                     handleSchoolSelection(selectedSchool); // Pass the selected school
                 }
             });
+
         apiApp = new ApiApp();
         HBox headerLayout = new HBox(10);
         headerLayout.setPadding(new Insets(10));
+        Label searchLabel = new Label("Enter City:");
         searchField = new TextField();
-        searchField.setPromptText("Enter address");
 
         searchButton = new Button("Search");
         searchButton.setOnAction(event -> handleSearch());
 
         headerLayout.getChildren().addAll
-            (searchField, searchButton);
+            (searchLabel, searchField, searchButton);
 
 
         // Map View
-        mapView = new ImageView();
-        mapView.setFitWidth(600);
-        mapView.setFitHeight(200);
-        mapView.setPreserveRatio(true);
+        mapDisplay = new MapDisplay(600, 200);
 
         // School Info List
         rootLayout = new BorderPane();
         rootLayout.setPadding(new Insets(10));
         rootLayout.setTop(headerLayout);        // Header at the top
-        rootLayout.setCenter(new VBox(10, resultsList, mapView)); // Center with results and map
+        rootLayout.setCenter(new VBox(10, resultsList, mapDisplay.getContainer()));
         rootLayout.setRight(new VBox()); // Placeholder for DataUSA information
 
 
@@ -74,15 +75,9 @@ public class Controller {
         bottomBar = new HBox();
         bottomBar.setPadding(new Insets(10));
         bottomBar.setStyle("-fx-background-color: #e0e0e0; -fx-border-color: #c0c0c0;");
-        Label statusLabel = new Label("Loading...");
-        statusLabel.setPadding(new Insets(5, 10, 5, 10));
-        ProgressBar progressBar = new ProgressBar();
-        progressBar.setProgress(0);
-        progressBar.setPrefWidth(300);
-        progressBar.setPrefHeight(25);
-        progressBar.setVisible(true);
+        Label statusLabel = new Label("0 & NaN = null");
 
-        bottomBar.getChildren().addAll(statusLabel, progressBar);
+        bottomBar.getChildren().addAll(statusLabel);
 
         rootLayout.setBottom(bottomBar);
     }
@@ -106,7 +101,7 @@ public class Controller {
         System.out.println("Location:" + searchQuery);
 
         if (searchQuery.isBlank()) {
-            showAlert("Input error:", "Please enter valid Address");
+            showAlert("Input error:", "Please enter valid City");
             return;
         }
 
@@ -142,56 +137,50 @@ public class Controller {
         if (selectedSchool == null) {
             return;
         }
-        String schoolName = selectedSchool.getName().trim();
+        GoogleMapsApi googleMapsApi = new GoogleMapsApi();
+        String normalizedSchoolName = googleMapsApi.
+            normalizeUniversityName(selectedSchool.getName());
         String schoolAddress = selectedSchool.getAddress().trim();
         String schoolCity = selectedSchool.getCity().trim();
         String addressQuery = "Unknown Address".equals(schoolAddress)
-            ? schoolName + ", " + schoolCity : schoolAddress;
-        System.out.println("Selected School: " + schoolName);
-        System.out.println("Selected School Address: " + schoolAddress);
-        System.out.println("Selected School City: " + schoolCity);
-        // Fetch educational statistics in a background thread
+            ? normalizedSchoolName + ", " + schoolCity : schoolAddress;
         new Thread(() -> {
             try {
-                // Fetch educational statistics
-                String educationalStats = apiApp.getEducationalStatistics
-                    (schoolName, schoolCity);
+            // Fetch Google Maps details
+                Map<String, Object> googleDetails =
+                    apiApp.getGoogleMapsDetails(normalizedSchoolName);
+
+            // Create a GoogleMapsInfo object
+                GoogleMapsInfo googleMapsInfo = new GoogleMapsInfo(googleDetails);
+
+            // Fetch educational statistics
+                String educationalStats =
+                    apiApp.getEducationalStatistics(normalizedSchoolName, schoolCity);
                 if (educationalStats == null || educationalStats.isBlank()) {
                     educationalStats = "No educational statistics available for this school.";
                 }
+
+            // Fetch the map URL
                 String coordinates = apiApp.getGoogleMapsApi().convertAddress(addressQuery);
                 String mapUrl = apiApp.getGoogleMapsApi().getStaticMapUrl(coordinates);
-                System.out.println("Map URL: " + mapUrl);
-                Map<String, Object> googleDetails = apiApp.getGoogleMapsDetails(schoolName);
 
-            // Extract data from the Google Maps response
-                String description = googleDetails.containsKey("name")
-                    && googleDetails.get("name") instanceof String
-                    ? (String) googleDetails.get("name")
-                    : "Unknown Name";
-                String address = googleDetails.containsKey("formatted_address")
-                    && googleDetails.get("formatted_address") instanceof String
-                    ? (String) googleDetails.get("formatted_address")
-                    : "Unknown Address";
-                double rating = googleDetails.containsKey("rating")
-                    && googleDetails.get("rating") instanceof Double
-                    ? (Double) googleDetails.get("rating")
-                    : -1.0; // Use -1.0 to indicate a missing rating
-
+            // Update UI on the JavaFX Application Thread
                 final String finalEducationalStats = educationalStats;
                 final String finalMapUrl = mapUrl;
 
                 Platform.runLater(() -> {
                     try {
-                        mapView.setImage(new Image(finalMapUrl));
-                        updateStatisticsDisplay(finalEducationalStats, schoolName,
-                            schoolCity, address, rating);
+                        mapDisplay.updateMap(finalMapUrl);
+                        updateStatisticsDisplay(finalEducationalStats, normalizedSchoolName,
+                            schoolCity, googleMapsInfo.getAddress(), googleMapsInfo.getRating());
                     } catch (Exception e) {
+                        mapDisplay.updateMap(null); // Show "Map unavailable"
                         showAlert("Error", "Failed to extract school details: " + e.getMessage());
                     }
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
+                    mapDisplay.updateMap(null); // Show "Map unavailable"
                     showAlert("Error", "Failed to fetch school details: " + e.getMessage());
                 });
             }
@@ -216,28 +205,30 @@ public class Controller {
         TextArea statsArea = new TextArea(educationalStats);
         statsArea.setWrapText(true);
         statsArea.setEditable(false);
-
+        statsArea.setPrefSize(300, 150); // Set preferred width and height
+        statsArea.setStyle("-fx-border-color: black; -fx-border-width: 1;");
         Label googleLabel = new Label("Google Maps Details:");
         googleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        Label descriptionLabel = new Label("Description: " + (schoolName != null ?
-            schoolName : "null"));
-        Label cityLabel = new Label("City: " + (schoolCity != null ? schoolCity : "null"));
-        Label addressLabel = new Label("Address: " + (address != null ? address : "null"));
-        Label ratingLabel = new Label("Rating: " + (rating >= 0 ? rating : "null"));
-
-
-        System.out.println("Educational Stats: " + educationalStats);
-        System.out.println("School Name: " + schoolName + " (Type: " +
-            (schoolName != null ? schoolName.getClass().getName() : "null") + ")");
-        System.out.println("School City: " + schoolCity + " (Type: " + (schoolCity != null
-            ? schoolCity.getClass().getName() : "null") + ")");
-        System.out.println("Address: " + address + " (Type: " + (address != null
-            ? address.getClass().getName() : "null") + ")");
-        System.out.println("Rating: " + rating + " (Type: " +
-            ((Object) rating).getClass().getName() + ")");
+        TextArea googleDetailsArea = new TextArea();
+        googleDetailsArea.setWrapText(true);
+        googleDetailsArea.setEditable(false);
+        googleDetailsArea.setPrefSize(300, 150); // Set preferred size for Google Maps Details box
+        googleDetailsArea.setStyle("-fx-border-color: black; -fx-border-width: 1;");
+        // Populate Google Maps details text box
+        String googleDetailsContent = String.format(
+            "Description: %s\nCity: %s\nAddress: %s\nRating: %s",
+            schoolName != null ? schoolName : "null",
+            schoolCity != null ? schoolCity : "null",
+            address != null ? address : "null",
+            rating >= 0 ? rating : "null"
+        );
+        googleDetailsArea.setText(googleDetailsContent);
 
         statsBox.getChildren().addAll(statsLabel, statsArea,
-            googleLabel, descriptionLabel, cityLabel, addressLabel, ratingLabel);
+            googleLabel, googleDetailsArea);
+        ScrollPane scrollPane = new ScrollPane(statsBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefSize(320, 350); // Adjust dimensions as needed
         rootLayout.setRight(statsBox);
     }
 

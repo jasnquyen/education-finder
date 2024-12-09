@@ -190,16 +190,21 @@ public class DataUsaApi {
         int enrollment = school.containsKey("latest.student.size") ?
             ((Double) school.get("latest.student.size")).intValue() : 0;
         double admissionRate = school.containsKey("latest.admissions.admission_rate.overall") &&
-            school.get("latest.admissions.admission_rate.overall") instanceof Double
+            school.get("latest.admissions.admission_rate.overall") instanceof Number
             ? (Double) school.get("latest.admissions.admission_rate.overall")
             : Double.NaN; // Default to NaN if missing
 
-        double annualCost = school.containsKey("latest.cost.attendance.academic_year") ?
-            (Double) school.get("latest.cost.attendance.academic_year") : Double.NaN;
-        System.out.println("Extracted annualCost: " + annualCost);
+        double annualCost = school.containsKey("latest.cost.attendance.academic_year") &&
+            school.get("latest.cost.attendance.academic_year") instanceof Number
+            ? (Double) school.get("latest.cost.attendance.academic_year")
+            : Double.NaN; // Use NaN if not available
+
         return (String.format(
             "Institution: %s\nEnrollment: %d\nAdmission Rate: %.2f%%\nAnnual Cost: $%.2f\n\n",
-            name, enrollment, admissionRate * 100, annualCost
+            name,
+            enrollment,
+            admissionRate * 100,
+            annualCost
         ));
 
     }
