@@ -197,15 +197,23 @@ public class DataUsaApi {
         double annualCost = school.containsKey("latest.cost.attendance.academic_year") &&
             school.get("latest.cost.attendance.academic_year") instanceof Number
             ? (Double) school.get("latest.cost.attendance.academic_year")
-            : Double.NaN; // Use NaN if not available
+            : Double.NaN; // Default to NaN if missing
 
-        return (String.format(
-            "Institution: %s\nEnrollment: %d\nAdmission Rate: %.2f%%\nAnnual Cost: $%.2f\n\n",
-            name,
-            enrollment,
-            admissionRate * 100,
-            annualCost
-        ));
+            // Build the output string dynamically
+        StringBuilder result = new StringBuilder();
+        result.append(String.format("Institution: %s\n", name));
+        result.append(String.format("Enrollment: %d\n", enrollment));
+
+        if (!Double.isNaN(admissionRate)) {
+            result.append(String.format("Admission Rate: %.2f%%\n", admissionRate * 100));
+        }
+
+        if (!Double.isNaN(annualCost) && annualCost != 0.00) {
+            result.append(String.format("Annual Cost: $%.2f\n", annualCost));
+        }
+
+
+        return result.toString();
 
     }
 }

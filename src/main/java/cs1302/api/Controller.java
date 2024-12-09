@@ -11,6 +11,7 @@ import javafx.scene.layout.*;
 import cs1302.api.Schools;
 import cs1302.api.GoogleMapsInfo;
 import cs1302.api.MapDisplay;
+import javafx.geometry.Pos;
 
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class Controller {
 
         resultsList = new ListView<>();
         resultsList.setPrefHeight(200);
-
+        resultsList.setStyle("-fx-border-color: lightgray; -fx-border-width: 1; -fx-padding: 5px;");
         resultsList.getSelectionModel().selectedItemProperty().
             addListener((obs, oldVal, newVal) -> {
                 selectedSchool = newVal; // Store the selected school
@@ -50,9 +51,11 @@ public class Controller {
         apiApp = new ApiApp();
         HBox headerLayout = new HBox(10);
         headerLayout.setPadding(new Insets(10));
-        Label searchLabel = new Label("Enter City:");
-        searchField = new TextField();
+        headerLayout.setAlignment(Pos.CENTER);
 
+        Label searchLabel = new Label("Enter City:");
+        searchLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+        searchField = new TextField();
         searchButton = new Button("Search");
         searchButton.setOnAction(event -> handleSearch());
 
@@ -61,7 +64,8 @@ public class Controller {
 
 
         // Map View
-        mapDisplay = new MapDisplay(600, 200);
+        mapDisplay = new MapDisplay(400, 200);
+
 
         // School Info List
         rootLayout = new BorderPane();
@@ -75,9 +79,10 @@ public class Controller {
         bottomBar = new HBox();
         bottomBar.setPadding(new Insets(10));
         bottomBar.setStyle("-fx-background-color: #e0e0e0; -fx-border-color: #c0c0c0;");
-        Label statusLabel = new Label("0 & NaN = null");
-
-        bottomBar.getChildren().addAll(statusLabel);
+        Label statusLabel = new Label("University Finder");
+        statusLabel.setStyle("-fx-text-fill: gray;");
+        bottomBar.setAlignment(Pos.CENTER);
+        bottomBar.getChildren().add(statusLabel);
 
         rootLayout.setBottom(bottomBar);
     }
@@ -145,45 +150,49 @@ public class Controller {
         String addressQuery = "Unknown Address".equals(schoolAddress)
             ? normalizedSchoolName + ", " + schoolCity : schoolAddress;
         new Thread(() -> {
+            String educationalStats = "No educational statistics available for this school.";
+            String mapUrl = null;
+            Map<String, Object> googleDetails = null;
+
             try {
-            // Fetch Google Maps details
-                Map<String, Object> googleDetails =
-                    apiApp.getGoogleMapsDetails(normalizedSchoolName);
-
-            // Create a GoogleMapsInfo object
-                GoogleMapsInfo googleMapsInfo = new GoogleMapsInfo(googleDetails);
-
             // Fetch educational statistics
-                String educationalStats =
+                educationalStats =
                     apiApp.getEducationalStatistics(normalizedSchoolName, schoolCity);
-                if (educationalStats == null || educationalStats.isBlank()) {
-                    educationalStats = "No educational statistics available for this school.";
-                }
-
-            // Fetch the map URL
-                String coordinates = apiApp.getGoogleMapsApi().convertAddress(addressQuery);
-                String mapUrl = apiApp.getGoogleMapsApi().getStaticMapUrl(coordinates);
-
-            // Update UI on the JavaFX Application Thread
-                final String finalEducationalStats = educationalStats;
-                final String finalMapUrl = mapUrl;
-
-                Platform.runLater(() -> {
-                    try {
-                        mapDisplay.updateMap(finalMapUrl);
-                        updateStatisticsDisplay(finalEducationalStats, normalizedSchoolName,
-                            schoolCity, googleMapsInfo.getAddress(), googleMapsInfo.getRating());
-                    } catch (Exception e) {
-                        mapDisplay.updateMap(null); // Show "Map unavailable"
-                        showAlert("Error", "Failed to extract school details: " + e.getMessage());
-                    }
-                });
             } catch (Exception e) {
-                Platform.runLater(() -> {
-                    mapDisplay.updateMap(null); // Show "Map unavailable"
-                    showAlert("Error", "Failed to fetch school details: " + e.getMessage());
-                });
+                System.err.println("Failed to fetch educational statistics: " + e.getMessage());
             }
+
+            try {
+                googleDetails = apiApp.getGoogleMapsDetails(normalizedSchoolName);
+            } catch (Exception e) {
+                System.err.println("Failed to fetch Google Maps details: " + e.getMessage());
+            }
+            try {
+                String coordinates = apiApp.getGoogleMapsApi().convertAddress(addressQuery);
+                mapUrl = apiApp.getGoogleMapsApi().getStaticMapUrl(coordinates);
+            } catch (Exception e) {
+                System.err.println("Failed to load map: " + e.getMessage());
+                mapUrl = null;
+            }
+            final String finalEducationalStats = educationalStats;
+            final Map<String, Object> finalGoogleDetails = googleDetails;
+            final String finalMapUrl = mapUrl;
+            Platform.runLater(() -> {
+                try {
+                    mapDisplay.updateMap(finalMapUrl);
+                    if (finalGoogleDetails != null) {
+                        GoogleMapsInfo googleMapsInfo = new GoogleMapsInfo(finalGoogleDetails);
+                        updateStatisticsDisplay(finalEducationalStats, normalizedSchoolName,
+                            schoolCity,googleMapsInfo.getAddress(), googleMapsInfo.getRating());
+                    } else {
+                        updateStatisticsDisplay(finalEducationalStats, normalizedSchoolName,
+                            schoolCity, "Unknown Address", -1.0
+                        );
+                    }
+                } catch (Exception e) {
+                    showAlert("Error", "Failed to update UI: " + e.getMessage());
+                }
+            });
         }).start();
 
     }
