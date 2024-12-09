@@ -16,9 +16,8 @@ Markdown is transformed into nice-looking HTML.
     College Scorecard returns colleges based off city and displays school-based data, while Google Maps API generates a map off the address of
     the selected school, and generates information based off it.
 
-    GitHub Repository: [https://github.com/jan19557/cs1302-api-app/tree/main](https://github.com/jan19557/cs1302-api-app/tree/main)
+>   ** Github: '[https://github.com/jan19557/cs1302-api-app/tree/main](https://github.com/jan19557/cs1302-api-app/tree/main)' **
 
-TODO WRITE / REPLACE
 
 ## Part 1.2: APIs
 
