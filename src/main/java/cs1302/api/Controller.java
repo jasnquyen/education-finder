@@ -51,10 +51,9 @@ public class Controller {
         apiApp = new ApiApp();
         HBox headerLayout = new HBox(10);
         headerLayout.setPadding(new Insets(10));
-        headerLayout.setAlignment(Pos.CENTER);
 
         Label searchLabel = new Label("Enter City:");
-        searchLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+        searchLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         searchField = new TextField();
         searchButton = new Button("Search");
         searchButton.setOnAction(event -> handleSearch());

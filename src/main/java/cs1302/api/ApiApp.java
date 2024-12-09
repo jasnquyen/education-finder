@@ -1,7 +1,7 @@
 package cs1302.api;
 
 import cs1302.api.Schools;
-import cs1302.api.DataUsaApi;
+import cs1302.api.CollegeScorecardApi;
 import cs1302.api.GoogleMapsApi;
 import java.util.Map;
 
@@ -12,7 +12,7 @@ import java.util.List;
  */
 
 public class ApiApp {
-    private final DataUsaApi dataUsaApi = new DataUsaApi();
+    private final CollegeScorecardApi dataUsaApi = new CollegeScorecardApi();
     private final GoogleMapsApi googleMapsApi = new GoogleMapsApi();
 
       /**
