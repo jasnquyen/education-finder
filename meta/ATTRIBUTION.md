@@ -1,5 +1,7 @@
 # Assets
 
+I didn't have to use any attributions, only pictures generated are from my Google Maps API.
+
 Modify this file to satisfy a submission requirement related to providing
 proper attribution for all assets (e.g., art, sound, music, etc.) that
 you include in your project, especially assets that you did not personally
