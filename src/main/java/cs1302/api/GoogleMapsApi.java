@@ -29,7 +29,7 @@ public class GoogleMapsApi {
         "https://maps.googleapis.com/maps/api/geocode/json";
     private static final String STATIC_MAP_BASE_URL =
         "https://www.google.com/maps/embed/v1/place";
-    private static final String API_KEY = "AIzaSyDAW_yi5_v4HeeAZENVmF5Rk7xlqp1T5xY";
+    private static final String API_KEY; //assume there is an API Key
     private final HttpClient httpClient;
     private final Gson gson;
 
